@@ -1,0 +1,25 @@
+import AppKit
+let size = 1024
+let image = NSImage(size:NSSize(width:size,height:size))
+image.lockFocus()
+let bounds = NSRect(x:28,y:28,width:968,height:968)
+let shape = NSBezierPath(roundedRect:bounds,xRadius:220,yRadius:220)
+NSColor(calibratedRed:0.08,green:0.10,blue:0.18,alpha:1).setFill(); shape.fill()
+NSGradient(colors:[NSColor(calibratedRed:0.35,green:0.23,blue:0.95,alpha:1),NSColor(calibratedRed:0.12,green:0.68,blue:0.78,alpha:1)])!.draw(in:shape,angle:35)
+NSGraphicsContext.saveGraphicsState()
+shape.addClip()
+NSColor.white.withAlphaComponent(0.15).setFill()
+NSBezierPath(ovalIn:NSRect(x:70,y:500,width:560,height:560)).fill()
+NSGraphicsContext.restoreGraphicsState()
+let phone = NSBezierPath(roundedRect:NSRect(x:292,y:155,width:440,height:710),xRadius:88,yRadius:88)
+NSColor(calibratedRed:0.08,green:0.10,blue:0.20,alpha:0.95).setFill();phone.fill()
+NSColor.white.withAlphaComponent(0.9).setStroke();phone.lineWidth=12;phone.stroke()
+NSColor.white.setFill()
+let triangle=NSBezierPath();triangle.move(to:NSPoint(x:460,y:398));triangle.line(to:NSPoint(x:460,y:622));triangle.line(to:NSPoint(x:635,y:510));triangle.close();triangle.fill()
+NSColor.white.withAlphaComponent(0.5).setFill();NSBezierPath(roundedRect:NSRect(x:437,y:194,width:150,height:12),xRadius:6,yRadius:6).fill()
+let bubble=NSBezierPath(roundedRect:NSRect(x:657,y:684,width:223,height:164),xRadius:50,yRadius:50)
+NSColor.white.setFill();bubble.fill()
+for x in [708,765,822] { NSColor(calibratedRed:0.25,green:0.29,blue:0.66,alpha:1).setFill();NSBezierPath(ovalIn:NSRect(x:x,y:753,width:20,height:20)).fill() }
+image.unlockFocus()
+let rep=NSBitmapImageRep(data:image.tiffRepresentation!)!
+try rep.representation(using:.png,properties:[:])!.write(to:URL(fileURLWithPath:CommandLine.arguments[1]))

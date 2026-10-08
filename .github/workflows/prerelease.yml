@@ -1,0 +1,37 @@
+name: Publish free test prerelease
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: publish-free-prerelease
+  cancel-in-progress: false
+jobs:
+  publish:
+    if: github.ref == 'refs/heads/main'
+    runs-on: macos-15
+    timeout-minutes: 25
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - name: Test
+        run: bash Tests/run.sh
+      - name: Build without Apple account
+        run: bash build.sh
+      - name: Prepare checksum
+        working-directory: dist
+        run: shasum -a 256 ReelsWhileGPT-arm64.zip > SHA256SUMS.txt
+      - name: Publish explicitly labelled prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TASK_VERSION=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' Resources/Info.plist)
+          [[ "$TASK_VERSION" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]
+          gh release create "v$TASK_VERSION" dist/ReelsWhileGPT-arm64.zip dist/SHA256SUMS.txt --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --prerelease --title "Reels While GPT $TASK_VERSION — free test build" --notes-file Release/PRERELEASE.md
