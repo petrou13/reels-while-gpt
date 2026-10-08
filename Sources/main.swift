@@ -66,7 +66,7 @@ final class Model: ObservableObject {
     func forgetInstagramLogin() {
         guard !clearingLogin else { return }
         let alert=NSAlert()
-        alert.messageText=L("Удалить сохранённый вход в Instagram?","Remove saved Instagram sign-in?")
+        alert.messageText=L("Удалить сохранённый вход в аккаунт?","Remove saved account sign-in?")
         alert.informativeText=L("Встроенное окно закроется, автоматический просмотр выключится. Будут удалены cookies, данные сайта и кэш этого приложения. Вход в Safari и Chrome сохранится.","The built-in viewer will close and automatic viewing will turn off. This app's cookies, website data and cache will be removed. Safari and Chrome sign-in stays unchanged.")
         alert.addButton(withTitle:L("Удалить вход","Remove sign-in")); alert.addButton(withTitle:L("Отмена","Cancel"))
         guard alert.runModal() == .alertFirstButtonReturn else { return }
@@ -79,7 +79,7 @@ final class Model: ObservableObject {
             }
             self.engine.overlay.clearWebsiteData {
                 self.enabled=false; self.save(); self.clearingLogin=false; self.viewerOpen=false
-                self.status=L("Сохранённый вход удалён. При следующем открытии Instagram попросит войти заново.","Saved sign-in removed. Instagram will ask you to sign in next time.")
+                self.status=L("Сохранённый вход удалён. При следующем открытии ленты потребуется войти заново.","Saved sign-in removed. You will need to sign in when reopening the feed.")
             }
         }
     }
@@ -109,7 +109,7 @@ final class Model: ObservableObject {
         let url = validatedURL() ?? "https://www.instagram.com/reels/"
         if validatedURL() == nil && enabled {
             enabled = false; save()
-            status = "Неверный URL Reels — введите HTTPS-адрес instagram.com и включите мониторинг снова"
+            status = "Неверный адрес ленты — укажите поддерживаемый HTTPS-адрес и включите мониторинг снова"
             changed?(); return
         }
         save(); working = true
@@ -134,7 +134,7 @@ final class Model: ObservableObject {
         operationError = false
         if quit { save(); shuttingDown = true }
         else if !test { enabled = false; save() }
-        guard !(test || login || manual) || validatedURL() != nil else { status = "Введите HTTPS URL Instagram"; return }
+        guard !(test || login || manual) || validatedURL() != nil else { status = "Введите поддерживаемый HTTPS-адрес ленты"; return }
         let b = browser, mode = playback, url = validatedURL() ?? "https://www.instagram.com/reels/"
         worker.async {
             var failed = false
@@ -243,11 +243,10 @@ struct SettingsView: View {
                 navigation(1,L("Подключение","Connection"),"macwindow")
                 navigation(2,L("Справка","Help"),"questionmark.circle")
                 Spacer()
-                Text("v1.17").font(.caption).foregroundStyle(.secondary)
+                Text("v1.18").font(.caption).foregroundStyle(.secondary)
             }.padding(21).frame(width:190).frame(maxHeight:.infinity).background(Color(nsColor:.controlBackgroundColor).opacity(0.6))
             VStack(alignment:.leading,spacing:13) {
                 Text(model.tab == 0 ? L("Ваши Reels — в один клик","Your Reels, one click away") : model.tab == 1 ? L("Подключение и проверка","Connection and diagnostics") : L("Как пользоваться программой","How to use this app")).font(.title2.bold())
-                Text(L("Instagram принадлежит Meta Platforms Inc., признанной экстремистской организацией; её деятельность по реализации Facebook и Instagram запрещена в РФ.","Instagram is owned by Meta Platforms Inc., designated an extremist organization in Russia; its activities involving Facebook and Instagram are prohibited in Russia.")).font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
                 ScrollView {
                     VStack(spacing:13) {
                         if model.tab == 0 {
@@ -261,7 +260,7 @@ struct SettingsView: View {
                             }
                             card(L("Смотреть сейчас","Watch now"),icon:"play.fill") {
                                 HStack(spacing:13) {
-                                    Button(L("Открыть Reels","Open Reels")) { model.command(manual:true) }.buttonStyle(.borderedProminent).controlSize(.large).keyboardShortcut("r",modifiers:.command).help(L("Открывает Instagram без запроса ChatGPT и выключает автоматический режим. Сочетание клавиш: Cmd+R.","Open Instagram without waiting for ChatGPT. Manual viewing turns automatic mode off. Cmd+R."))
+                                    Button(L("Открыть Reels","Open Reels")) { model.command(manual:true) }.buttonStyle(.borderedProminent).controlSize(.large).keyboardShortcut("r",modifiers:.command).help(L("Открывает ленту видео без запроса ChatGPT и выключает автоматический режим. Сочетание клавиш: Cmd+R.","Open the video feed without waiting for ChatGPT. Manual viewing turns automatic mode off. Cmd+R."))
                                     Button(L("Закрыть Reels","Close Reels")) { model.command() }.controlSize(.large).help(L("Закрывает свой просмотрщик и выключает автоматический режим. Если он открыт для ответа, возвращает к исходному диалогу.","Close the app’s viewer and turn automatic mode off. If opened for a response, return to that conversation."))
                                 }
                                 Text(L("Смотрите Reels без запроса ChatGPT и закройте окно, когда закончите. При ручном просмотре автоматический режим выключается.","Watch Reels without a ChatGPT request and close the window when finished. Manual viewing turns automatic mode off.")).font(.callout).foregroundStyle(.secondary)
@@ -273,10 +272,10 @@ struct SettingsView: View {
                                     Picker(L("Браузер для Reels","Reels browser"),selection:$model.browser) { ForEach(Browser.allCases,id:\.self) { Text($0.rawValue).tag($0) } }.disabled(model.enabled).help(L("Выбранный браузер используется для Reels и для проверки запросов, если ChatGPT также открыт в браузере.","The selected browser is used for Reels and for request detection if you also use ChatGPT in a browser."))
                                 }
                                 if model.enabled { Text(L("Чтобы изменить место просмотра, выключите открытие Reels при запросах ChatGPT.","Turn off request-triggered Reels viewing to change the viewer.")).font(.caption).foregroundStyle(.secondary) }
-                                Text(L("Встроенный просмотрщик поддерживает свайпы и быстрое повторное открытие. Режим браузера использует собственную сессию Instagram.","The built-in viewer supports swipes and fast reopening. Browser mode uses the browser’s Instagram session.")).font(.callout).foregroundStyle(.secondary)
-                                if model.playback == .floating { Button(L("Открыть Instagram для входа","Open Instagram to sign in")) { model.command(login:true) }.help(L("Открывает встроенное окно без ограничения времени, чтобы вы могли войти в Instagram. Автоматический режим выключается.","Open the built-in viewer without a timer for Instagram sign-in. Automatic mode turns off.")) }
-                                Button(model.clearingLogin ? L("Удаляем вход…","Removing sign-in…") : L("Удалить сохранённый вход в Instagram…","Remove saved Instagram sign-in…")) { model.forgetInstagramLogin() }.disabled(model.clearingLogin).help(L("Удаляет данные Instagram только из встроенного окна после подтверждения. Вход в браузерах не затрагивается.","After confirmation, remove Instagram data only from the built-in viewer. Browser sign-in is unaffected."))
-                                Text(L("Instagram сохраняет вход с помощью cookies в локальном хранилище WebKit. Приложение не считывает и не сохраняет пароль.","Instagram keeps sign-in through cookies in local WebKit storage. The app does not read or save your password.")).font(.caption).foregroundStyle(.secondary)
+                                Text(L("Встроенный просмотрщик поддерживает свайпы и быстрое повторное открытие. Режим браузера использует собственную сессию аккаунта.","The built-in viewer supports swipes and fast reopening. Browser mode uses the browser’s account session.")).font(.callout).foregroundStyle(.secondary)
+                                if model.playback == .floating { Button(L("Войти в аккаунт","Sign in to your account")) { model.command(login:true) }.help(L("Открывает встроенное окно без ограничения времени, чтобы вы могли войти в аккаунт. Автоматический режим выключается.","Open the built-in viewer without a timer for account sign-in. Automatic mode turns off.")) }
+                                Button(model.clearingLogin ? L("Удаляем вход…","Removing sign-in…") : L("Удалить сохранённый вход в аккаунт…","Remove saved account sign-in…")) { model.forgetInstagramLogin() }.disabled(model.clearingLogin).help(L("Удаляет данные сервиса только из встроенного окна после подтверждения. Вход в браузерах не затрагивается.","After confirmation, remove the service’s data only from the built-in viewer. Browser sign-in is unaffected."))
+                                Text(L("Сервис сохраняет вход с помощью cookies в локальном хранилище WebKit. Приложение не считывает и не сохраняет пароль.","The service keeps sign-in through cookies in local WebKit storage. The app does not read or save your password.")).font(.caption).foregroundStyle(.secondary)
                             }
                             card(L("Запуск и воспроизведение","Opening and playback"),icon:"slider.horizontal.3") {
                                 Toggle(L("Без звука","Mute videos"),isOn:$model.muted).onChange(of:model.muted) { _ in model.preferencesChanged() }.help(L("Включает или выключает звук во встроенном просмотрщике. Режим браузера использует собственные настройки звука.","Mute or unmute the built-in viewer. Browser mode has its own sound settings."))
@@ -284,7 +283,7 @@ struct SettingsView: View {
                                 Toggle(L("Сохранять загруженную ленту","Keep the feed loaded"),isOn:$model.keepLoaded).onChange(of:model.keepLoaded) { _ in model.preferencesChanged() }.help(L("При закрытии окна ставит видео на паузу и сохраняет страницу. Вы сможете продолжить с того же ролика до выхода из приложения.","Hide and pause instead of unloading the page. Reopening keeps the reel until you quit the app."))
                                 Toggle(L("Переключиться на окно ChatGPT при получении ответа","Switch to the ChatGPT window when the response arrives"),isOn:$model.returnAfterResponse).onChange(of:model.returnAfterResponse) { _ in model.preferencesChanged() }.help(L("После завершения ответа и закрытия Reels переключает вас на окно ChatGPT. Выключите эту настройку, чтобы продолжить работу в текущем окне.","When the response is ready and Reels close, switch your working window to ChatGPT. Turn off to remain in your current window."))
                                 Text(L("Если эта настройка выключена, Reels закроются, а вы останетесь в текущем окне.","With return disabled, Reels close without switching your working window.")).font(.caption).foregroundStyle(.secondary)
-                                Picker(L("Язык","Language"),selection:$model.language) { ForEach(AppLanguage.allCases,id:\.self) { Text($0.title).tag($0) } }.onChange(of:model.language) { _ in model.preferencesChanged() }.help(L("Меняет язык приложения и справки сразу, без перезапуска. Язык Instagram и ChatGPT не меняется.","Change the app and help language immediately. Instagram and ChatGPT keep their own language."))
+                                Picker(L("Язык","Language"),selection:$model.language) { ForEach(AppLanguage.allCases,id:\.self) { Text($0.title).tag($0) } }.onChange(of:model.language) { _ in model.preferencesChanged() }.help(L("Меняет язык приложения и справки сразу, без перезапуска. Язык сайта и ChatGPT не меняется.","Change the app and help language immediately. The website and ChatGPT keep their own language."))
                             }
                         } else if model.tab == 1 {
                             card(L("Подключение ChatGPT","ChatGPT connection"),icon:"macwindow") {
@@ -319,23 +318,21 @@ struct SettingsView: View {
                                 Text(L10n.text(model.copyFeedback)).font(.caption).foregroundStyle(.secondary)
                             }
                             card(L("Дополнительные параметры","Advanced options"),icon:"gearshape") {
-                                TextField(L("Адрес Reels","Reels address"),text:$model.reelsURL).textFieldStyle(.roundedBorder).disabled(model.enabled).help(L("Укажите адрес Instagram, начинающийся с https://. По умолчанию используется instagram.com/reels/. Сохраняются только адреса Reels, без параметров и фрагментов.","Only an HTTPS Instagram Reels URL. Query parameters and fragments are removed before saving."))
+                                DisclosureGroup(L("Адрес ленты видео","Video feed address")) {
+                                TextField(L("Адрес Reels","Reels address"),text:$model.reelsURL).textFieldStyle(.roundedBorder).disabled(model.enabled).help(L("Укажите поддерживаемый HTTPS-адрес ленты видео. Сохраняются только адреса Reels, без параметров и фрагментов.","Only a supported HTTPS video feed URL. Query parameters and fragments are removed before saving."))
+                                }
                                 if model.source == .browser { Toggle(L("Использовать только Универсальный доступ","Use Accessibility only"),isOn:$model.axOnly).disabled(model.enabled).help(L("Резервный способ проверки браузера без JavaScript. Может предоставлять меньше информации о состоянии ответа.","Browser detection fallback without JavaScript. It may provide less response-state information.")) }
                                 HStack {
                                     Button(L("Тест · 8 с","Test · 8 s")) { model.command(test:true) }.help(L("Открывает Reels на 8 секунд, чтобы проверить просмотрщик.","Open Reels for 8 seconds to test the viewer."))
-                                    Button(L("Макет окна","Window preview")) { model.command(preview:true) }.help(L("Показывает локальный макет без загрузки Instagram. Закройте окно самостоятельно.","Show a local preview without loading Instagram. Close it manually."))
+                                    Button(L("Макет окна","Window preview")) { model.command(preview:true) }.help(L("Показывает локальный макет без загрузки сайта. Закройте окно самостоятельно.","Show a local preview without loading the website. Close it manually."))
                                 }
                                 Button(L("Показать запущенную копию","Show running app copy")) { model.revealApp() }.help(L("Показывает запущенную копию приложения в Finder. Именно её нужно добавить в настройки доступа macOS.","Reveal the running app copy in Finder so you can grant it macOS permission."))
                                 Button(L("Копировать текущий статус","Copy current status")) { model.copy(L10n.text(model.status)) }.help(L("Копирует подробное описание последнего действия или ошибки.","Copy the detailed description of the last action or error."))
                             }
                         } else {
                             card(L("Что делает Reels While GPT","What Reels While GPT does"),icon:"play.rectangle") {
-                                Text(L("Мини-приложение показывает Instagram Reels, пока ChatGPT отвечает. После подтверждённого завершения ответа оно закрывает своё окно Reels. Можно также смотреть вручную без запроса ChatGPT.","This small app shows Instagram Reels while ChatGPT responds. After confirming completion, it closes its own Reels window. You can also watch manually without a ChatGPT request."))
-                                Text(L("Instagram может потребовать вход. Программа не обходит авторизацию и не считывает ваши сообщения или пароли.","Instagram may require sign-in. The app does not bypass authentication or read your messages or passwords.")).font(.callout).foregroundStyle(.secondary)
-                            }
-                            card(L("Правовая информация для РФ","Legal information for Russia"),icon:"info.circle") {
-                                Text(L("Ограничение относится к Meta Platforms Inc. Instagram — её сервис. Программа является независимым проектом и не обходит ограничения доступа или авторизацию.","The designation concerns Meta Platforms Inc.; Instagram is its service. This app is independent and does not bypass access restrictions or sign-in."))
-                                Link(L("Перечень Минюста России","Russian Ministry of Justice list"),destination:URL(string:"https://minjust.gov.ru/ru/documents/7822/")!)
+                                Text(L("Мини-приложение показывает короткие вертикальные видео, пока ChatGPT отвечает. После подтверждённого завершения ответа оно закрывает своё окно Reels. Можно также смотреть вручную без запроса ChatGPT.","This small app shows short vertical videos while ChatGPT responds. After confirming completion, it closes its own Reels window. You can also watch manually without a ChatGPT request."))
+                                Text(L("Сервис может потребовать вход. Программа не обходит авторизацию и не считывает ваши сообщения или пароли.","The service may require sign-in. The app does not bypass authentication or read your messages or passwords.")).font(.callout).foregroundStyle(.secondary)
                             }
                             card(L("Основные команды","Main controls"),icon:"cursorarrow") {
                                 helpRow(L("Открыть Reels","Open Reels"),L("Открывает ленту без ограничения времени и выключает автоматический режим. Сочетание клавиш: Cmd+R.","Opens the feed with no time limit and turns automatic mode off. Shortcut: Cmd+R."))
@@ -344,7 +341,7 @@ struct SettingsView: View {
                                 helpRow(L("Переключиться на окно ChatGPT при получении ответа","Switch to the ChatGPT window when the response arrives"),L("После автоматического закрытия Reels переключает рабочее окно на ChatGPT. Выключите, чтобы остаться в текущем окне.","After Reels close automatically, switches your working window to ChatGPT. Turn it off to stay in your current window."))
                             }
                             card(L("Настройки просмотра и подключения","Viewing and connection"),icon:"gearshape") {
-                                helpRow(L("Без звука","Mute videos"),L("Выключает звук встроенного просмотрщика. Instagram может попросить нажать кнопку воспроизведения, чтобы включить звук.","Mutes the built-in viewer. Instagram may require a playback click to allow sound."))
+                                helpRow(L("Без звука","Mute videos"),L("Выключает звук встроенного просмотрщика. Сервис может попросить нажать кнопку воспроизведения, чтобы включить звук.","Mutes the built-in viewer. The service may require a playback click to allow sound."))
                                 helpRow(L("Сохранять загруженную ленту","Keep the feed loaded"),L("При скрытии окна сохраняет страницу и текущий ролик до выхода из приложения. Повторное открытие не перезагружает страницу без необходимости.","Keeps the page and current reel while hidden, until the app quits. Reopening avoids unnecessary page reloads."))
                                 helpRow(L("Подключение","Connection"),L("Выберите, через что вы используете ChatGPT, и настройте доступ. Чтобы изменить источник, сначала выключите автоматический режим. Место просмотра Reels выбирается на странице «Просмотр».","Choose how you use ChatGPT and set up permissions. Turn off automatic mode before changing the source. Select the Reels viewer on the Watch page."))
                                 helpRow(L("Универсальный доступ","Accessibility"),L("Разрешение macOS для распознавания запросов. Если доступ запрещён, добавьте запущенную копию приложения в настройки Универсального доступа и включите разрешение.","macOS permission for detecting requests. If access fails, add the exact running app copy to Accessibility settings and enable it."))
@@ -352,7 +349,7 @@ struct SettingsView: View {
                             }
                             card(L("Технические команды","Technical controls"),icon:"wrench.and.screwdriver") {
                                 helpRow(L("Проверить детектор","Check detector"),L("Проверяет выбранный способ подключения: браузер или приложение. В разделе «Подключение» покажет проблему и действия для её устранения. Для проверки генерации запустите длинный ответ.","Checks the selected browser or app connection. Connection shows the issue and how to fix it. Send a long request to check generation."))
-                                helpRow(L("Тест · 8 с / Макет окна","Test · 8 s / Window preview"),L("Тест открывает Instagram на 8 секунд. Макет показывает локальное окно без сети; закройте его самостоятельно.","Test opens Instagram for 8 seconds. Preview shows a local window without network access; close it manually."))
+                                helpRow(L("Тест · 8 с / Макет окна","Test · 8 s / Window preview"),L("Тест открывает ленту видео на 8 секунд. Макет показывает локальное окно без сети; закройте его самостоятельно.","Test opens the video feed for 8 seconds. Preview shows a local window without network access; close it manually."))
                                 helpRow(L("Копировать отчёт / статус","Copy report / status"),L("Копирует диагностический текст для разбора ошибки. Значения полей и переписка в отчёт не входят.","Copies diagnostic text for troubleshooting. The report excludes field values and conversation text."))
                             }
                         }

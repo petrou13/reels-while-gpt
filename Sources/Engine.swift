@@ -61,20 +61,20 @@ final class Engine {
     func preview() throws -> String {
         _ = try finish(restore:false)
         overlay.preview(); floatingActive = true; setupOpen = true
-        return "Preview 9:16 · без загрузки Instagram"
+        return "Preview 9:16 · без загрузки сайта"
     }
     func login(url: String) throws -> String {
         _ = try finish(restore:false)
         try overlay.show(url:url); floatingActive = true; setupOpen = true
-        return "Войдите в Instagram в плавающем окне, затем включите мониторинг"
+        return "Войдите в аккаунт в плавающем окне, затем включите мониторинг"
     }
     var viewerStatus: String {
         if sessionPlayback == .floating { return overlay.status }
         switch pipState {
         case "active": return "Picture-in-Picture активен"
-        case "gesture": return "Нажмите «Смотреть поверх ChatGPT» в своём окне Instagram"
+        case "gesture": return "Нажмите «Смотреть поверх ChatGPT» в своём окне с видео"
         case "permission": return "Для PiP включите JavaScript from Apple Events в браузере"
-        case "login": return "Instagram просит вход в выбранном браузере"
+        case "login": return "Сервис просит вход в выбранном браузере"
         case "unsupported": return "Браузер не предоставил PiP; выберите встроенное плавающее окно"
         case "gone", "changed", "wrong-page": return "Окно Reels закрыто или изменено пользователем"
         default: return "Ожидание видео / запуска Picture-in-Picture"

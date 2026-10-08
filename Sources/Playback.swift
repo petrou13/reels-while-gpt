@@ -272,7 +272,7 @@ final class FloatingPlayer: NSObject, WKNavigationDelegate, WKUIDelegate, NSWind
         timelineHover=false; updateTimeline()
         if !placed { place(); placed = true }
         if ViewerReusePolicy.shouldLoad(requested:url,loaded:currentURL,hasPage:web.url != nil) {
-            currentURL = url; message = "Instagram загружается в плавающем окне"
+            currentURL = url; message = "Лента видео загружается в плавающем окне"
             web.load(URLRequest(url:URL(string:url)!))
         } else {
             message = "Плавающее окно готово · сохранённая лента"
@@ -303,7 +303,7 @@ final class FloatingPlayer: NSObject, WKNavigationDelegate, WKUIDelegate, NSWind
     func preview() {
         currentURL = nil
         web.loadHTMLString(L10n.text("<meta name='viewport' content='width=device-width,initial-scale=1'><body style='margin:0;background:#15151c;color:white;font-family:system-ui;display:grid;place-items:center;height:100vh'><div style='text-align:center'><div style='font-size:64px'>▶</div><h2>Плавающее окно 9:16</h2><p>Поверх полноэкранных приложений</p><p>Можно перемещать и менять размер</p></div></body>"),baseURL:nil)
-        place(); panel.orderFrontRegardless(); message = "Локальный preview · без Instagram"
+        place(); panel.orderFrontRegardless(); message = "Локальный preview · без загрузки сайта"
     }
     static func allowed(_ url: URL) -> Bool { SecurityPolicy.instagram(url) }
     func webView(_ webView: WKWebView, decidePolicyFor action: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
@@ -311,7 +311,7 @@ final class FloatingPlayer: NSObject, WKNavigationDelegate, WKUIDelegate, NSWind
         if url.absoluteString == "about:blank" || Self.allowed(url) { decisionHandler(.allow) }
         else if action.targetFrame?.isMainFrame == false && url.scheme == "https" && url.user == nil && url.password == nil { decisionHandler(.allow) }
         else {
-            message = "Внешняя страница заблокирована; вход выполняйте непосредственно в Instagram"
+            message = "Внешняя страница заблокирована; войдите на странице сервиса"
             decisionHandler(.cancel)
         }
     }
@@ -324,15 +324,15 @@ final class FloatingPlayer: NSObject, WKNavigationDelegate, WKUIDelegate, NSWind
     }
     func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) { videoRect = nil; gate.reset(); seekState(["ready":false]) }
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-        if currentURL == nil { message = "Локальный preview · без Instagram"; return }
+        if currentURL == nil { message = "Локальный preview · без загрузки сайта"; return }
         message = webView.url?.path.contains("/accounts/") == true
-            ? "Войдите один раз в Instagram в плавающем окне; вход сохранится"
-            : "Плавающее окно готово · Instagram может требовать вход / Play"
+            ? "Войдите один раз в аккаунт в плавающем окне; вход сохранится"
+            : "Плавающее окно готово · Сервис может требовать вход / Play"
         evaluatePlayerScript("window.__rwgSeekLanguage = '\(L("ru","en"))'; window.__rwgSeekUpdate && window.__rwgSeekUpdate(); window.__rwgMuted = \(UserDefaults.standard.object(forKey:"muted") as? Bool ?? true); window.__rwgResume && window.__rwgResume();",completionHandler:nil)
         if !panel.isVisible { hide() }
     }
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
-        message = "Не удалось загрузить Instagram; проверьте подключение и повторите открытие"
+        message = "Не удалось загрузить ленту видео; проверьте подключение и повторите открытие"
     }
 }
 final class OverlayBridge: OverlayService {
@@ -343,7 +343,7 @@ final class OverlayBridge: OverlayService {
         return DispatchQueue.main.sync(execute:body)
     }
     func show(url: String) throws {
-        guard let parsed = URL(string:url), FloatingPlayer.allowed(parsed) else { throw AppFailure(message:"Недопустимый URL Instagram") }
+        guard let parsed = URL(string:url), FloatingPlayer.allowed(parsed) else { throw AppFailure(message:"Недопустимый адрес ленты видео") }
         onMain { if player == nil { player = FloatingPlayer() }; player!.show(url:url) }
     }
     func hide() { onMain { player?.hide(); previewPlayer?.hide() } }

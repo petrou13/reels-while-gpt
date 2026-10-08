@@ -16,7 +16,7 @@ Floating window over fullscreen apps; single-reel swipes; seeking controls below
 
 ## Install
 
-Version **1.17** is a free testing build, ad-hoc signed with Hardened Runtime but **not Developer ID signed or notarized by Apple**. Published binaries, when available, are in [Releases](https://github.com/petrou13/reels-while-gpt/releases). If there is no release yet, build from source. Publication of source does not imply a binary release exists.
+Version **1.18** is a free testing build, ad-hoc signed with Hardened Runtime but **not Developer ID signed or notarized by Apple**. Published binaries, when available, are in [Releases](https://github.com/petrou13/reels-while-gpt/releases). If there is no release yet, build from source. Publication of source does not imply a binary release exists.
 
 Quit the old app, extract the ZIP and move the app to a permanent folder such as `~/Applications`. macOS may block an unidentified/unnotarized app. If you trust the artifact, follow [Apple's per-app Open Anyway procedure](https://support.apple.com/102445) where available. Do not globally disable Gatekeeper or SIP.
 
@@ -26,7 +26,7 @@ Choose the ChatGPT source under Connection, grant required permissions, choose t
 
 Accessibility is required for native detection and browser fallback. Add the installed app copy to macOS Accessibility settings. Browser Automation permission and optionally Allow JavaScript from Apple Events are required for DOM mode (Safari Develop, Chrome View → Developer). AX fallback may recognize fewer states. Screen Recording, Input Monitoring, Full Disk Access, camera and microphone are not required.
 
-The utility does not request password field values, message text or chat titles, and has no telemetry/developer server. Persistent WebKit website data retains sign-in using sensitive session cookies/tokens, not a password database maintained by the utility. Passwords are handled by the official Instagram page. Instagram's own storage/analytics remain governed by its policies. Browser cookies are not imported/exported. Watch → Remove saved Instagram sign-in deletes this app's website data after confirmation without changing Chrome/Safari sessions. See [privacy](Release/PRIVACY.en.md) and [audit scope](Release/SECURITY-AUDIT.ru.md).
+The utility does not request password field values, message text or chat titles, and has no telemetry/developer server. Persistent WebKit website data retains sign-in using sensitive session cookies/tokens, not a password database maintained by the utility. Passwords are handled by the official Instagram page. Instagram's own storage/analytics remain governed by its policies. Browser cookies are not imported/exported. Watch → Remove saved account sign-in deletes this app's website data after confirmation without changing Chrome/Safari sessions. See [privacy](Release/PRIVACY.en.md) and [audit scope](Release/SECURITY-AUDIT.ru.md).
 
 ## Build
 
