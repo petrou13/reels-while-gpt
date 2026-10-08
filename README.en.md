@@ -1,5 +1,7 @@
 # Reels While GPT
 
+Instagram is owned by Meta Platforms Inc., designated an extremist organization in Russia; its activities involving Facebook and Instagram are prohibited in Russia. [Russian Ministry of Justice list](https://minjust.gov.ru/ru/documents/7822/).
+
 Your little break while ChatGPT thinks.
 
 [Русский](README.md) · [License](LICENSE) · [Privacy](Release/PRIVACY.en.md)
@@ -14,7 +16,7 @@ Floating window over fullscreen apps; single-reel swipes; seeking controls below
 
 ## Install
 
-Version **1.16** is a free testing build, ad-hoc signed with Hardened Runtime but **not Developer ID signed or notarized by Apple**. Published binaries, when available, are in [Releases](https://github.com/petrou13/reels-while-gpt/releases). If there is no release yet, build from source. Publication of source does not imply a binary release exists.
+Version **1.17** is a free testing build, ad-hoc signed with Hardened Runtime but **not Developer ID signed or notarized by Apple**. Published binaries, when available, are in [Releases](https://github.com/petrou13/reels-while-gpt/releases). If there is no release yet, build from source. Publication of source does not imply a binary release exists.
 
 Quit the old app, extract the ZIP and move the app to a permanent folder such as `~/Applications`. macOS may block an unidentified/unnotarized app. If you trust the artifact, follow [Apple's per-app Open Anyway procedure](https://support.apple.com/102445) where available. Do not globally disable Gatekeeper or SIP.
 
@@ -35,10 +37,12 @@ Install/configure Xcode with a macOS SDK and accept its license. No paid Apple D
 ./Tests/run.sh
 ```
 
-Outputs: `dist/Reels While GPT.app`, `dist/ReelsWhileGPT-arm64.zip`. LICENSE and NOTICE are included in the app. Version 1.15 passed 218 local checks; 1.16 adds repository/license packaging without changing runtime behavior. Live Instagram sign-in, AX and clean-Mac installation still need manual testing. The hosted CI/manual prerelease workflow has to run successfully before its artifact can be claimed tested.
+Outputs: `dist/Reels While GPT.app`, `dist/ReelsWhileGPT-arm64.zip`. LICENSE and NOTICE are included in the app. Version 1.17 passed 245 local checks, including browser diagnostics and stop-control regressions. Live Instagram sign-in, AX and clean-Mac installation still need manual testing. The hosted CI/manual prerelease workflow has to run successfully before its artifact can be claimed tested.
 
 ## Distribution and contribution
 
 The manual GitHub prerelease workflow requires no Apple secrets and deliberately labels binaries as ad-hoc/unnotarized. A later [Developer ID/notarization plan](Release/PUBLISH.en.md) is included. The current app is not App Sandbox enabled and is not ready for Mac App Store submission. Instagram/ChatGPT changes may break DOM/AX behavior; restrictions and login are not bypassed.
 
 See [LICENSE](LICENSE), [NOTICE](NOTICE), [CONTRIBUTING](CONTRIBUTING.md), [SECURITY](SECURITY.md). Keep notices when sharing copies. Do not upload passwords, cookies, account tokens, private conversation content or third-party videos in reports.
+
+Version 1.17: Connection includes advanced options. Check detector probes the selected app or browser, with separate macOS Automation, JavaScript and DOM/Accessibility results. Conversation URLs and field values are excluded. In Safari 17+, enable web developer features in Settings → Advanced, then Allow JavaScript from Apple Events in Settings → Developer.

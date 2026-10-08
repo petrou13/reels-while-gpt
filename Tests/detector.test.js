@@ -11,6 +11,16 @@ function detect(buttons=[],composer=true,host='chatgpt.com',protocol='https:') {
 }
 const cases = [
   [detect([button('Stop streaming')]),'busy'],
+  [detect([button('Stop')]),'busy'],
+  [detect([{...button('Stop'),getAttribute:k=>['aria-label','title'].includes(k)?'Stop':null}]),'busy'],
+  [detect([{...button('Stop'),getAttribute:k=>k==='aria-label'?'Stop':k==='title'?'Stop recording':null},button('Send prompt')]),'idle'],
+  [detect([button('Остановить')]),'busy'],
+  [detect([button('Stop response')]),'busy'],
+  [detect([button('Interrupt')]),'busy'],
+  [detect([button('Stop recording'),button('Send prompt')]),'idle'],
+  [detect([button('Остановить диктовку'),button('Send prompt')]),'idle'],
+  [detect([Object.assign(button('Stop'),{disabled:true}),button('Send prompt')]),'idle'],
+  [detect([{...button('Stop'),getAttribute:k=>k==='aria-disabled'?'true':k==='aria-label'?'Stop':null},button('Send prompt')]),'idle'],
   [detect([button('','stop-button')]),'busy'],
   [detect([button('Остановить генерацию')]),'busy'],
   [detect([button('Send prompt','send-button')]),'idle'],

@@ -32,11 +32,14 @@ final class Model: ObservableObject {
     @Published var reelsURL = SecurityPolicy.savedReelsURL(UserDefaults.standard.string(forKey:"url") ?? "") ?? SecurityPolicy.defaultReelsURL
     @Published var clearingLogin = false
     @Published var nativeReport = "Нажмите «Проверить детектор» во время активного запроса ChatGPT"
+    @Published var connectionTitle = ""
+    @Published var connectionDetail = ""
     @Published var checking = false
     @Published var diagnosticExpanded = false
     @Published var checkResult = ""
     @Published var copyFeedback = ""
     private var checkNumber = 0
+    private var diagnosticSelection = ""
     @Published var axOnly = UserDefaults.standard.bool(forKey: "axOnly")
     @Published var status = "Мониторинг выключен — включите переключатель выше"
     private let worker = DispatchQueue(label: "local.ReelsWhileGPT.browser")
@@ -81,6 +84,12 @@ final class Model: ObservableObject {
         }
     }
     func save() {
+        let selection = "\(source.rawValue)|\(browser.rawValue)|\(axOnly)"
+        if selection != diagnosticSelection {
+            diagnosticSelection=selection; connectionTitle=""; connectionDetail=""; checkResult=""
+            nativeReport=L("Подключение изменено. Нажмите «Проверить детектор» для новой проверки.","Connection changed. Click Check detector to check the new selection.")
+            diagnosticExpanded=false
+        }
         UserDefaults.standard.set(enabled,forKey:"enabled")
         UserDefaults.standard.set(playback.rawValue,forKey:"playback")
         UserDefaults.standard.set(source.rawValue,forKey:"source")
@@ -154,19 +163,26 @@ final class Model: ObservableObject {
     func revealApp() { NSWorkspace.shared.selectFile(Bundle.main.bundlePath,inFileViewerRootedAtPath:"") }
     func diagnose() {
         guard !checking else { return }
-        checking = true; diagnosticExpanded = true; checkNumber += 1
+        diagnosticSelection="\(source.rawValue)|\(browser.rawValue)|\(axOnly)"
+        checking = true; diagnosticExpanded = false; checkNumber += 1
         let number = checkNumber
         checkResult = "Проверка #\(number): выполняется…"
         let identity = "Reels While GPT \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") ?? "?")\nЗапущено из: \(URL(fileURLWithPath:Bundle.main.bundlePath).lastPathComponent)\nAXIsProcessTrusted=\(AXIsProcessTrusted())"
+        let selectedSource = source, b = browser, ax = axOnly
+        connectionTitle = L("Проверяем выбранное подключение…","Checking selected connection…")
+        connectionDetail = ""
         worker.async {
-            let report = self.engine.native.diagnostics()
-            let access = self.engine.native.permissionStatus()
+            let result = self.engine.connectionDiagnosis(source:selectedSource,b:b,axOnly:ax)
             DispatchQueue.main.async {
+                guard self.source == selectedSource && self.browser == b && self.axOnly == ax else {
+                    self.checking=false; self.checkResult=L("Подключение изменено — повторите проверку","Connection changed — check again"); self.connectionTitle=""; self.connectionDetail=""; return
+                }
                 let time = DateFormatter.localizedString(from:Date(),dateStyle:.short,timeStyle:.medium)
-                self.nativeAccess = access
+                self.nativeAccess = result.access
                 self.checking = false
                 self.checkResult = "Проверка #\(number) завершена · \(time)"
-                self.nativeReport = self.checkResult + "\n" + identity + "\n" + report
+                self.nativeReport = self.checkResult + "\n" + identity + "\n" + result.report
+                self.connectionTitle = result.title; self.connectionDetail = result.detail
                 self.copyFeedback = ""
             }
         }
@@ -225,13 +241,13 @@ struct SettingsView: View {
                 Text(L("Ваш маленький перерыв, пока ChatGPT думает","Your little break while ChatGPT thinks")).font(.caption).foregroundStyle(.secondary).padding(.bottom,21)
                 navigation(0,L("Просмотр","Watch"),"play.rectangle")
                 navigation(1,L("Подключение","Connection"),"macwindow")
-                navigation(2,L("Технические","Advanced"),"wrench.and.screwdriver")
-                navigation(3,L("Справка","Help"),"questionmark.circle")
+                navigation(2,L("Справка","Help"),"questionmark.circle")
                 Spacer()
-                Text("v1.16").font(.caption).foregroundStyle(.secondary)
+                Text("v1.17").font(.caption).foregroundStyle(.secondary)
             }.padding(21).frame(width:190).frame(maxHeight:.infinity).background(Color(nsColor:.controlBackgroundColor).opacity(0.6))
             VStack(alignment:.leading,spacing:13) {
-                Text(model.tab == 0 ? L("Ваши Reels — в один клик","Your Reels, one click away") : model.tab == 1 ? L("Где вы общаетесь с ChatGPT","Where you use ChatGPT") : model.tab == 2 ? L("Проверка и дополнительные параметры","Checks and advanced options") : L("Как пользоваться программой","How to use this app")).font(.title2.bold())
+                Text(model.tab == 0 ? L("Ваши Reels — в один клик","Your Reels, one click away") : model.tab == 1 ? L("Подключение и проверка","Connection and diagnostics") : L("Как пользоваться программой","How to use this app")).font(.title2.bold())
+                Text(L("Instagram принадлежит Meta Platforms Inc., признанной экстремистской организацией; её деятельность по реализации Facebook и Instagram запрещена в РФ.","Instagram is owned by Meta Platforms Inc., designated an extremist organization in Russia; its activities involving Facebook and Instagram are prohibited in Russia.")).font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
                 ScrollView {
                     VStack(spacing:13) {
                         if model.tab == 0 {
@@ -240,7 +256,7 @@ struct SettingsView: View {
                                 if model.friendlyStatus == .accessDenied {
                                     Button(L("Разрешить распознавание запросов…","Allow request detection…")) { model.requestAX() }.help(L("Сначала предлагает перейти в настройки доступа. Настройки откроются только после вашего подтверждения.","Offer to open Accessibility settings. Settings only open when you choose to proceed."))
                                 } else if model.friendlyStatus == .invalidAddress || model.friendlyStatus == .operationFailed {
-                                    Button(L("Проверить настройки","Check settings")) { model.tab = 2 }
+                                    Button(L("Проверить настройки","Check settings")) { model.tab = 1 }
                                 } else if model.friendlyStatus == .unrecognized { Button(L("Проверить подключение","Check connection")) { model.tab = 1 } }
                             }
                             card(L("Смотреть сейчас","Watch now"),icon:"play.fill") {
@@ -279,18 +295,27 @@ struct SettingsView: View {
                                 if model.enabled { Text(L("Выключите автоматический просмотр, чтобы изменить способ подключения к ChatGPT.","Turn off automatic viewing to change how you connect to ChatGPT.")).font(.caption).foregroundStyle(.secondary) }
                             }
                             card(L("Доступ к ChatGPT","ChatGPT access"),icon:"checkmark.shield") {
-                                Label(model.axGranted && model.nativeAccess != .denied ? L("Разрешение macOS получено","macOS permission granted") : L("Нужно разрешить распознавание запросов","Request detection permission needed"),systemImage:model.axGranted && model.nativeAccess != .denied ? "checkmark.circle" : "exclamationmark.circle").foregroundStyle(model.axGranted && model.nativeAccess != .denied ? Color.green : Color.orange)
+                                if model.source == .native || model.axOnly {
+                                    Label(model.axGranted && (model.source != .native || model.nativeAccess != .denied) ? L("Разрешение macOS получено","macOS permission granted") : L("Нужно разрешить распознавание запросов","Request detection permission needed"),systemImage:model.axGranted ? "checkmark.circle" : "exclamationmark.circle")
+                                } else {
+                                    Text(L("Основной способ проверки браузера — JavaScript через Автоматизацию macOS. Универсальный доступ нужен для резервного распознавания, если JavaScript недоступен.","Browser detection primarily uses JavaScript through macOS Automation. Accessibility is used as a fallback when JavaScript is unavailable.")).font(.callout).foregroundStyle(.secondary)
+                                }
                                 Button(L("Настроить Универсальный доступ…","Set up Accessibility…")) { model.requestAX() }.help(L("Добавьте именно эту копию Reels While GPT в Универсальный доступ macOS. Программа не считывает сообщения и пароли.","Add this exact Reels While GPT app copy to macOS Accessibility. Message text and passwords are not read."))
                             }
-                        } else if model.tab == 2 {
                             card(L("Проверить распознавание","Check detection"),icon:"stethoscope") {
-                                Text(L("Запустите проверку, пока ChatGPT готовит длинный ответ. Отчёт не содержит текста переписки.","Check during a long response. The report contains no conversation text.")).font(.callout).foregroundStyle(.secondary)
+                                Text(model.source == .browser ? L("Проверка выбранного браузера: автоматизация macOS, JavaScript и распознавание ответа. Откройте вкладку ChatGPT; для проверки генерации отправьте длинный запрос.","Check the selected browser: macOS automation, JavaScript and response detection. Open a ChatGPT tab; send a long request to test generation.") : L("Проверка приложения ChatGPT: Универсальный доступ и распознавание ответа. Проверяйте во время длинного ответа.","Check the ChatGPT app: Accessibility and response detection. Check during a long response.")).font(.callout).foregroundStyle(.secondary)
                                 HStack {
                                     Button(model.checking ? L("Проверяем…","Checking…") : L("Проверить детектор","Check detector")) { model.diagnose() }.disabled(model.checking).help(L("Проверяйте во время ответа ChatGPT. Подробный отчёт предназначен для разбора ошибки.","Check while ChatGPT is responding. The detailed report is for troubleshooting."))
                                     Button(L("Копировать отчёт","Copy report")) { model.copy(L10n.text(model.nativeReport)) }.help(L("Копирует полный отчёт для разбора ошибки. В нём нет текстов диалогов и значений полей.","Copy the full troubleshooting report. It contains no conversation text or field values."))
                                 }
+                                if !model.connectionTitle.isEmpty {
+                                    Text(model.connectionTitle).font(.headline).textSelection(.enabled)
+                                    Text(model.connectionDetail).font(.callout).foregroundStyle(.secondary).textSelection(.enabled)
+                                }
                                 Text(L10n.text(model.checkResult)).font(.caption)
-                                ScrollView { Text(L10n.text(model.nativeReport)).font(.system(size:11,design:.monospaced)).textSelection(.enabled).frame(maxWidth:.infinity,alignment:.leading) }.frame(height:130)
+                                DisclosureGroup(L("Подробный отчёт","Detailed report"),isExpanded:$model.diagnosticExpanded) {
+                                    Text(L10n.text(model.nativeReport)).font(.system(size:11,design:.monospaced)).textSelection(.enabled).frame(maxWidth:.infinity,alignment:.leading).padding(.top,8)
+                                }
                                 Text(L10n.text(model.copyFeedback)).font(.caption).foregroundStyle(.secondary)
                             }
                             card(L("Дополнительные параметры","Advanced options"),icon:"gearshape") {
@@ -308,6 +333,10 @@ struct SettingsView: View {
                                 Text(L("Мини-приложение показывает Instagram Reels, пока ChatGPT отвечает. После подтверждённого завершения ответа оно закрывает своё окно Reels. Можно также смотреть вручную без запроса ChatGPT.","This small app shows Instagram Reels while ChatGPT responds. After confirming completion, it closes its own Reels window. You can also watch manually without a ChatGPT request."))
                                 Text(L("Instagram может потребовать вход. Программа не обходит авторизацию и не считывает ваши сообщения или пароли.","Instagram may require sign-in. The app does not bypass authentication or read your messages or passwords.")).font(.callout).foregroundStyle(.secondary)
                             }
+                            card(L("Правовая информация для РФ","Legal information for Russia"),icon:"info.circle") {
+                                Text(L("Ограничение относится к Meta Platforms Inc. Instagram — её сервис. Программа является независимым проектом и не обходит ограничения доступа или авторизацию.","The designation concerns Meta Platforms Inc.; Instagram is its service. This app is independent and does not bypass access restrictions or sign-in."))
+                                Link(L("Перечень Минюста России","Russian Ministry of Justice list"),destination:URL(string:"https://minjust.gov.ru/ru/documents/7822/")!)
+                            }
                             card(L("Основные команды","Main controls"),icon:"cursorarrow") {
                                 helpRow(L("Открыть Reels","Open Reels"),L("Открывает ленту без ограничения времени и выключает автоматический режим. Сочетание клавиш: Cmd+R.","Opens the feed with no time limit and turns automatic mode off. Shortcut: Cmd+R."))
                                 helpRow(L("Закрыть Reels","Close Reels"),L("Закрывает свой просмотрщик и выключает автоматический режим. Если он был открыт для ответа, возвращает к этому диалогу.","Closes the app’s viewer and turns automatic mode off. If it was opened for a response, returns to that conversation."))
@@ -322,7 +351,7 @@ struct SettingsView: View {
                                 helpRow(L("Свайпы","Swipes"),L("Во встроенном окне свайп вверх открывает следующий ролик, вниз — предыдущий. На странице входа и в комментариях используется обычная прокрутка.","In the built-in viewer, swipe up for the next reel, down for the previous one. Login pages and comments use normal scrolling."))
                             }
                             card(L("Технические команды","Technical controls"),icon:"wrench.and.screwdriver") {
-                                helpRow(L("Проверить детектор","Check detector"),L("Запустите проверку, пока ChatGPT готовит ответ. Отчёт покажет, удаётся ли распознать его состояние. Подробности доступны в разделе «Технические».","Check during a long response to see whether the app detects ChatGPT’s state. Technical details remain in Advanced."))
+                                helpRow(L("Проверить детектор","Check detector"),L("Проверяет выбранный способ подключения: браузер или приложение. В разделе «Подключение» покажет проблему и действия для её устранения. Для проверки генерации запустите длинный ответ.","Checks the selected browser or app connection. Connection shows the issue and how to fix it. Send a long request to check generation."))
                                 helpRow(L("Тест · 8 с / Макет окна","Test · 8 s / Window preview"),L("Тест открывает Instagram на 8 секунд. Макет показывает локальное окно без сети; закройте его самостоятельно.","Test opens Instagram for 8 seconds. Preview shows a local window without network access; close it manually."))
                                 helpRow(L("Копировать отчёт / статус","Copy report / status"),L("Копирует диагностический текст для разбора ошибки. Значения полей и переписка в отчёт не входят.","Copies diagnostic text for troubleshooting. The report excludes field values and conversation text."))
                             }

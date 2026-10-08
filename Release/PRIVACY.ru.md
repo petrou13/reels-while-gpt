@@ -1,5 +1,7 @@
 # Конфиденциальность Reels While GPT
 
+Instagram принадлежит Meta Platforms Inc., признанной экстремистской организацией; её деятельность по реализации Facebook и Instagram запрещена в Российской Федерации. [Перечень Минюста России](https://minjust.gov.ru/ru/documents/7822/).
+
 Версия политики: 8 октября 2026 года.
 
 Reels While GPT — независимая локальная утилита для macOS. Она показывает Instagram Reels во время подготовки ответа ChatGPT. Она не является продуктом OpenAI или Meta.

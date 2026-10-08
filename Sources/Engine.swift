@@ -1,5 +1,12 @@
 import Foundation
 
+struct ConnectionDiagnosis {
+    let report: String
+    let title: String
+    let detail: String
+    let access: AccessState
+}
+
 // Confined to the serial worker queue. No network requests or message contents.
 final class Engine {
     let overlay: OverlayService
@@ -17,6 +24,16 @@ final class Engine {
     var idleSamples = 0
     var testUntil: Date?
     var idleSince: Date?
+    func connectionDiagnosis(source: ChatSource, b: Browser, axOnly: Bool) -> ConnectionDiagnosis {
+        if source == .browser {
+            let result = bridge.diagnose(b,axOnly:axOnly,target:browser == b ? origin : nil)
+            return ConnectionDiagnosis(report:result.report,title:result.title,detail:result.detail(b,axOnly:axOnly),access:.unchecked)
+        }
+        let report = native.diagnostics(), access = native.permissionStatus()
+        return ConnectionDiagnosis(report:report,
+            title:access == .allowed ? L("Доступ к приложению ChatGPT получен","ChatGPT app access granted") : L("Нужно проверить доступ к приложению ChatGPT","Check ChatGPT app access"),
+            detail:access == .allowed ? L("Подробный отчёт ниже показывает, распознано ли состояние ответа. Проверяйте во время длинного ответа.","The detailed report below shows whether the response state was detected. Check during a long response.") : L("Откройте приложение ChatGPT и разрешите Универсальный доступ этой копии Reels While GPT.","Open the ChatGPT app and grant Accessibility to this copy of Reels While GPT."),access:access)
+    }
     func finish(restore: Bool, disarmNative: Bool = false) throws -> String {
         if disarmNative { native.stopMonitoring() }
         var diagnostic: String?
@@ -118,6 +135,6 @@ final class Engine {
             try openViewer(b,url:url,playback:playback)
             return "Генерация обнаружена · \(result.method) · " + viewerStatus
         }
-        return result.signal == .unknown ? "Нет сигнала: проверьте JavaScript / Accessibility" : "Готов к следующему запросу · \(result.method)"
+        return result.signal == .unknown ? "Нет сигнала: \(result.method). Проверьте подключение" : "Готов к следующему запросу · \(result.method)"
     }
 }

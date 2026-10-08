@@ -3,6 +3,11 @@ import ApplicationServices
 
 final class Fake: BrowserService {
     var signal: Signal = .busy
+    var diagnoses = 0, diagnosedBrowser: Browser?, diagnosedTarget: TabRef?
+    func diagnose(_ b: Browser, axOnly: Bool, target: TabRef?) -> BrowserCheck {
+        diagnoses += 1; diagnosedBrowser = b; diagnosedTarget = target
+        return BrowserCheck(issue:.ready,report:"browser-fixture")
+    }
     var opened = 0, closed = 0, restored = 0, marked = 0
     var failOpen = false, failClose = false
     var pip = "loading", tucked = 0
@@ -260,4 +265,28 @@ for role in ["AXStaticText","AXLink","AXTextArea","AXTextField","AXTextEntryArea
     check(!SecurityPolicy.childContentAllowed(role:role),"private text/input children are excluded")
 }
 check(SecurityPolicy.metadataAllowed(role:"AXButton"),"detector still reads real button labels")
+let diagnosticBridge = Fake(), diagnosticNative = FakeNative()
+let diagnosticEngine = Engine(bridge:diagnosticBridge,native:diagnosticNative)
+let browserDiagnostic = diagnosticEngine.connectionDiagnosis(source:.browser,b:.safari,axOnly:false)
+check(browserDiagnostic.report == "browser-fixture" && diagnosticBridge.diagnoses == 1 && diagnosticBridge.diagnosedBrowser == .safari,"browser diagnosis routes to selected Safari, not native app")
+let nativeDiagnostic = diagnosticEngine.connectionDiagnosis(source:.native,b:.chrome,axOnly:false)
+check(diagnosticBridge.diagnoses == 1 && nativeDiagnostic.report != "browser-fixture","native diagnosis does not access a browser")
+diagnosticEngine.browser = .safari; diagnosticEngine.origin = diagnosticBridge.tab
+_ = diagnosticEngine.connectionDiagnosis(source:.browser,b:.safari,axOnly:false)
+check(diagnosticBridge.diagnosedTarget?.window == diagnosticBridge.tab.window,"diagnosis keeps original ChatGPT target while Reels are frontmost")
+_ = diagnosticEngine.connectionDiagnosis(source:.browser,b:.chrome,axOnly:false)
+check(diagnosticBridge.diagnosedTarget == nil,"diagnosis never sends Safari target to Chrome")
+check(BrowserCheck.evaluate(axOnly:false,dom:.busy,javascript:true,ax:.unknown,trusted:false) == .busy,"DOM detection does not require Accessibility")
+check(BrowserCheck.evaluate(axOnly:false,dom:.idle,javascript:true,ax:.busy,trusted:true) == .ready,"DOM remains primary when fallback differs")
+check(BrowserCheck.evaluate(axOnly:false,dom:.unknown,javascript:false,ax:.busy,trusted:true) == .fallback,"blocked JavaScript with usable AX reports fallback")
+check(BrowserCheck.evaluate(axOnly:false,dom:.unknown,javascript:false,ax:.unknown,trusted:false) == .javascriptUnavailable,"missing JS and AX permissions provide setup guidance")
+check(BrowserCheck.evaluate(axOnly:false,dom:.unknown,javascript:true,ax:.unknown,trusted:true) == .unknown,"connected browser without markers is not called ready")
+check(BrowserCheck.evaluate(axOnly:true,dom:.busy,javascript:true,ax:.unknown,trusted:false) == .javascriptUnavailable,"AX-only mode ignores DOM success")
+check(BrowserCheck.evaluate(axOnly:true,dom:.unknown,javascript:false,ax:.unknown,trusted:true) == .unknown,"granted AX without markers does not ask for a permission already granted")
+check(BrowserBridge.stopLabels(["Stop","Stop","some-id"]),"duplicate AX title and description still detect plain Stop")
+check(!BrowserBridge.stopLabels(["Stop","Stop recording"]),"AX short Stop with recording help is not generation")
+check(BrowserBridge.stopLabel("Stop"),"Safari plain stop label detected")
+check(BrowserBridge.stopLabel("Остановить"),"Safari short Russian stop label detected")
+check(!BrowserBridge.stopLabel("Stop recording"),"voice recording cannot open Reels")
+check(!BrowserBridge.stopLabel("Остановить диктовку"),"Russian dictation cannot open Reels")
 print("PASS: \(checks) lifecycle, overlay, PiP, native marker and permission checks")

@@ -31,7 +31,7 @@ struct NativeControls {
     static func stopMarker(_ value: String) -> String? {
         let label = value.lowercased().replacingOccurrences(of:"_",with:" ").replacingOccurrences(of:"-",with:" ")
             .trimmingCharacters(in:.whitespacesAndNewlines)
-        if label.contains("stop recording") || label.contains("stop dictat") || label.contains("остановить запись") { return nil }
+        if label.contains("stop recording") || label.contains("stop dictat") || label.contains("остановить запись") || label.contains("остановить диктов") { return nil }
         if label.contains("interrupt") || label.contains("прервать") { return "Interrupt / Прервать" }
         if label.contains("stop generating") || label.contains("stop generation") || label.contains("stop streaming") || label.contains("stop response") || label.contains("stop turn") || label.contains("stop button") || label.contains("cancel response") || label.contains("cancel generation") { return "Stop response / generation / turn" }
         if label.contains("остановить") || label.contains("прекратить генерацию") || label.contains("прекратить ответ") { return "Остановить / прекратить ответ" }

@@ -1,5 +1,7 @@
 # Reels While GPT privacy
 
+Instagram is owned by Meta Platforms Inc., designated an extremist organization in Russia; its activities involving Facebook and Instagram are prohibited in Russia. [Russian Ministry of Justice list](https://minjust.gov.ru/ru/documents/7822/).
+
 Policy version: October 8, 2026.
 
 Reels While GPT is an independent local macOS utility. It is not affiliated with OpenAI or Meta. It shows Instagram Reels while ChatGPT prepares a response.

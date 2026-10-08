@@ -19,8 +19,8 @@ enum UserStatus: Equatable {
     var detail: String {
         switch self {
         case .accessDenied: return L("macOS не разрешает распознавать запросы. Добавьте эту копию Reels While GPT в Универсальный доступ и включите разрешение. Reels можно открыть вручную.","macOS has blocked request detection. Add this copy of Reels While GPT to Accessibility and enable it. You can still open Reels manually.")
-        case .invalidAddress: return L("Откройте раздел «Технические» и укажите HTTPS-адрес Instagram.","In Advanced, enter an HTTPS Instagram address.")
-        case .operationFailed: return L("Повторите действие. Если ошибка осталась, откройте «Технические» и скопируйте отчёт или статус для разбора.","Try again. If the error persists, open Advanced and copy the report or status for troubleshooting.")
+        case .invalidAddress: return L("Откройте раздел «Подключение» и укажите HTTPS-адрес Instagram.","In Connection, enter an HTTPS Instagram address.")
+        case .operationFailed: return L("Повторите действие. Если ошибка осталась, откройте «Подключение» и скопируйте отчёт или статус для разбора.","Try again. If the error persists, open Connection and copy the report or status for troubleshooting.")
         case .openChat: return L("Откройте основное окно переписки в выбранном приложении или браузере, затем отправьте сообщение.","Open a regular conversation in the selected app or browser, then send a message.")
         case .unrecognized: return L("Откройте основное окно переписки и проверьте доступ в разделе «Подключение». При необходимости закройте Reels вручную.","Open the main conversation window and check permissions in Connection. Close Reels manually if needed.")
         case .viewing: return L("Закройте окно, когда закончите. Если Instagram попросит войти, сделайте это в окне Reels.","Close the window when finished. If Instagram requests sign-in, complete it in the Reels window.")

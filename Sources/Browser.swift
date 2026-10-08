@@ -9,12 +9,55 @@ struct TabRef { let window: Int; let tab: Int; let url: String; let title: Strin
 struct OwnedWindow { let browser: Browser; let window: Int; let tab: Int; let pid: pid_t; let launch: Date? }
 enum Signal: String { case busy, idle, unknown }
 struct Observation { let signal: Signal; let method: String }
+enum BrowserCheckIssue { case notInstalled, notRunning, noChat, automationDenied, automationFailed, javascriptUnavailable, unknown, ready, busy, fallback }
+struct BrowserCheck {
+    var issue: BrowserCheckIssue
+    var report: String
+    var title: String {
+        switch issue {
+        case .ready: return L("Подключение работает — ChatGPT готов к запросу","Connected — ChatGPT is ready")
+        case .busy: return L("Подключение работает — ответ распознан","Connected — response detected")
+        case .fallback: return L("Работает резервное распознавание","Fallback detection is working")
+        case .notInstalled: return L("Выбранный браузер не установлен","Selected browser is not installed")
+        case .notRunning: return L("Запустите выбранный браузер","Start the selected browser")
+        case .noChat: return L("Откройте вкладку ChatGPT","Open a ChatGPT tab")
+        case .automationDenied: return L("macOS запретила управление браузером","macOS blocked browser automation")
+        case .automationFailed: return L("Не удалось связаться с браузером","Could not communicate with the browser")
+        case .javascriptUnavailable: return L("Нужно разрешить JavaScript или настроить Универсальный доступ","Enable JavaScript or set up Accessibility")
+        case .unknown: return L("Браузер доступен, но состояние ответа не распознано","Browser connected, but response state is unknown")
+        }
+    }
+    func detail(_ b: Browser, axOnly: Bool) -> String {
+        let js = b == .safari
+            ? L("Safari → Настройки → Дополнения: включите функции для веб-разработчиков. Затем Safari → Настройки → Разработчик → «Разрешить JavaScript из событий Apple» (Allow JavaScript from Apple Events). В старых версиях пункт находится в меню «Разработка».","Safari → Settings → Advanced: enable features for web developers. Then Settings → Developer → Allow JavaScript from Apple Events. Older versions place it in the Develop menu.")
+            : L("Google Chrome → Вид → Разработчик → «Разрешить JavaScript из событий Apple» (Allow JavaScript from Apple Events).","Google Chrome → View → Developer → Allow JavaScript from Apple Events.")
+        switch issue {
+        case .automationDenied: return L("В macOS откройте Конфиденциальность и безопасность → Автоматизация и разрешите Reels While GPT управлять выбранным браузером. Затем повторите проверку.","In macOS Privacy & Security → Automation, allow Reels While GPT to control the selected browser. Then check again.")
+        case .automationFailed: return L("Повторите проверку. Если ошибка остаётся, перезапустите браузер и скопируйте отчёт с кодом ошибки.","Check again. If the error persists, restart the browser and copy the report with its error code.")
+        case .notInstalled: return L("Установите браузер или выберите другой в настройках подключения.","Install the browser or select another in Connection settings.")
+        case .notRunning, .noChat: return L("Откройте chatgpt.com в выбранном браузере и сделайте эту вкладку текущей. Для проверки активного ответа отправьте длинный запрос.","Open chatgpt.com in the selected browser and select that tab. Send a long request to check an active response.")
+        case .javascriptUnavailable: return axOnly ? L("Выбран режим «только Универсальный доступ». Разрешите доступ этой копии приложения в macOS либо выключите этот режим и включите JavaScript в браузере.","Accessibility-only mode is selected. Grant macOS Accessibility permission to this app copy, or turn this mode off and enable browser JavaScript.") : js + "\n" + L("Либо выдайте Универсальный доступ для резервного распознавания. После изменения разрешений повторите проверку.","Alternatively, grant Accessibility for fallback detection. Check again after changing permissions.")
+        case .fallback: return axOnly ? L("Выбран режим «только Универсальный доступ»; состояние ChatGPT распознано.","Accessibility-only mode is selected; ChatGPT state was detected.") : L("Состояние распознано через Универсальный доступ. Для основного способа проверки включите JavaScript: ","State detected through Accessibility. To enable the primary method: ") + js
+        case .unknown: return L("Откройте обычный диалог ChatGPT, дождитесь загрузки страницы и повторите проверку во время ответа. Проверьте, не открыта ли страница входа. При сохранении ошибки скопируйте отчёт.","Open a regular ChatGPT conversation, wait for it to load, and check during a response. Make sure this is not the sign-in page. Copy the report if the problem persists.")
+        case .ready: return L("Теперь включите автоматическое открытие Reels и отправьте сообщение. Проверка подключения сама по себе не включает автоматический просмотр.","Enable automatic Reels viewing and send a message. Checking the connection does not turn automatic viewing on.")
+        case .busy: return L("Кнопка остановки ответа обнаружена. При включённом автоматическом режиме Reels должны открываться на время ответа.","The response stop control was detected. With automatic viewing enabled, Reels should open during the response.")
+        }
+    }
+    static func evaluate(axOnly: Bool, dom: Signal, javascript: Bool, ax: Signal, trusted: Bool) -> BrowserCheckIssue {
+        if !axOnly && dom != .unknown { return dom == .busy ? .busy : .ready }
+        if trusted && ax != .unknown { return .fallback }
+        if axOnly { return trusted ? .unknown : .javascriptUnavailable }
+        return !javascript ? .javascriptUnavailable : .unknown
+    }
+}
 struct AppFailure: LocalizedError {
     let message: String
+    var code: Int? = nil
     var errorDescription: String? { message }
 }
 
 protocol BrowserService: AnyObject {
+    func diagnose(_ b: Browser, axOnly: Bool, target: TabRef?) -> BrowserCheck
     func front(_ b: Browser) throws -> TabRef?
     func observe(_ b: Browser, _ t: TabRef, axOnly: Bool) -> Observation
     func mark(_ b: Browser, _ t: TabRef) -> TabRef
@@ -26,10 +69,50 @@ protocol BrowserService: AnyObject {
     func restore(_ b: Browser, _ t: TabRef) throws
     func accessibility(_ b: Browser, _ t: TabRef) -> Signal
 }
-extension BrowserService { func prepareReels(_ owned: OwnedWindow) {}; func preparePiP(_ owned: OwnedWindow) -> String { "loading" }; func tuckAway(_ owned: OwnedWindow) {} }
+extension BrowserService {
+    func diagnose(_ b: Browser, axOnly: Bool, target: TabRef?) -> BrowserCheck { BrowserCheck(issue:.unknown,report:"Browser diagnostic unavailable") }
+    func prepareReels(_ owned: OwnedWindow) {}; func preparePiP(_ owned: OwnedWindow) -> String { "loading" }; func tuckAway(_ owned: OwnedWindow) {}
+}
 final class BrowserBridge: BrowserService {
     private var axAreas: [String: AXUIElement] = [:]
     private var autoplayUnavailable: Set<String> = []
+    func diagnose(_ b: Browser, axOnly: Bool, target: TabRef? = nil) -> BrowserCheck {
+        var lines = ["browser=\(b.rawValue)","AXIsProcessTrusted=\(AXPermission.isGranted)","axOnly=\(axOnly)"]
+        func result(_ issue: BrowserCheckIssue) -> BrowserCheck {
+            BrowserCheck(issue:issue,report:lines.joined(separator:"\n") + "\n" + L("Отчёт не содержит адресов диалогов, текста переписки, значений полей, паролей или cookies.","The report contains no conversation URLs, message text, field values, passwords or cookies."))
+        }
+        guard NSWorkspace.shared.urlForApplication(withBundleIdentifier:b.bundleID) != nil else { lines.append("installed=false"); return result(.notInstalled) }
+        guard app(b) != nil else { lines.append("running=false"); return result(.notRunning) }
+        lines.append("running=true, version=\(NSWorkspace.shared.urlForApplication(withBundleIdentifier:b.bundleID).flatMap { Bundle(url:$0)?.object(forInfoDictionaryKey:"CFBundleShortVersionString") as? String } ?? "?")")
+        var tab: TabRef?
+        do {
+            _ = try run(b,"return count windows")
+            lines.append("automation=ok")
+            tab = try target ?? front(b)
+        } catch {
+            let code=(error as? AppFailure)?.code ?? -1
+            lines.append("automation=failed, code=\(code)")
+            return result(code == -1743 || code == -1744 ? .automationDenied : .automationFailed)
+        }
+        guard let tab else { lines.append("chatTab=false"); return result(.noChat) }
+        lines.append("chatTab=true")
+        var js = false, dom = Signal.unknown
+        if !axOnly {
+            do {
+                js = try javascript(b,tab,source:"'rwg-javascript-ok'") == "rwg-javascript-ok"
+                if js { dom = try domSignal(b,tab) }
+                lines.append("javascript=\(js ? "ok" : "target-changed"), DOM=\(dom.rawValue)")
+            } catch {
+                let code = (error as? AppFailure)?.code ?? -1
+                lines.append("javascript=failed, code=\(code)")
+                if code == -1743 || code == -1744 { return result(.automationDenied) }
+            }
+        } else { lines.append("javascript=skipped (AX only)") }
+        let ax = AXPermission.isGranted ? accessibility(b,tab) : .unknown
+        lines.append("Accessibility=\(ax.rawValue)")
+        // The probe never activates, opens or closes a browser window.
+        return result(BrowserCheck.evaluate(axOnly:axOnly,dom:dom,javascript:js,ax:ax,trusted:AXPermission.isGranted))
+    }
     // No shell interpolation: all user strings are AppleScript string literals.
     static func quote(_ value: String) -> String {
         "\"" + value.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"").replacingOccurrences(of: "\r", with: "\\r").replacingOccurrences(of: "\n", with: "\\n") + "\""
@@ -50,7 +133,7 @@ final class BrowserBridge: BrowserService {
         let data = output.fileHandleForReading.readDataToEndOfFile()
         process.waitUntilExit()
         guard let object = try JSONSerialization.jsonObject(with:data) as? [String:Any] else { throw AppFailure(message:"Не удалось прочитать ScriptRunner") }
-        if object["error"] != nil { throw AppFailure(message:"AppleScript: ошибка управления браузером, код \(object["code"] as? Int ?? -1)") }
+        if object["error"] != nil { let code = object["code"] as? Int ?? -1; throw AppFailure(message:"AppleScript: ошибка управления браузером, код \(code)",code:code) }
         guard let result = object["result"] as? [String:Any] else { throw AppFailure(message:"ScriptRunner: timeout или нет ответа") }
         return Self.decode(result)
     }
@@ -94,23 +177,32 @@ final class BrowserBridge: BrowserService {
         // reordering/navigation causes unknown instead of accidentally reading another tab.
         return "set w to window id \(t.window)\nset t to tab \(t.tab) of w"
     }
+    func javascript(_ b: Browser, _ t: TabRef, source: String) throws -> String {
+        let js: String
+        if let token = t.token {
+            js = "window.__reelsWhileGPTToken === " + Self.quote(token) + " ? (" + source.trimmingCharacters(in:.whitespacesAndNewlines) + ") : 'unknown'"
+        } else { js = source }
+        let command = b == .chrome ? "execute t javascript \(Self.quote(js))" : "do JavaScript \(Self.quote(js)) in t"
+        let guardURL = t.token == nil ? "if URL of t is not \(Self.quote(t.url)) then return \"unknown\"\n" : ""
+        return try run(b,"\(targetScript(b,t))\n\(guardURL)return \(command)").stringValue ?? "unknown"
+    }
+    func domSignal(_ b: Browser, _ t: TabRef) throws -> Signal {
+        guard let file = Bundle.main.url(forResource:"detector",withExtension:"js") else { throw AppFailure(message:"Нет detector.js") }
+        return Signal(rawValue:try javascript(b,t,source:String(contentsOf:file,encoding:.utf8))) ?? .unknown
+    }
     func observe(_ b: Browser, _ t: TabRef, axOnly: Bool) -> Observation {
+        var method = "Accessibility"
         if !axOnly {
             do {
-                guard let jsURL = Bundle.main.url(forResource: "detector", withExtension: "js") else { throw AppFailure(message: "Нет detector.js") }
-                var js = try String(contentsOf: jsURL, encoding: .utf8)
-                if let token = t.token {
-                    js = "window.__reelsWhileGPTToken === " + Self.quote(token) + " ? (" + js.trimmingCharacters(in: .whitespacesAndNewlines) + ") : 'unknown'"
-                }
-                let command = b == .chrome ? "execute t javascript \(Self.quote(js))" : "do JavaScript \(Self.quote(js)) in t"
-                let guardURL = t.token == nil && b == .safari ? "if URL of t is not \(Self.quote(t.url)) then return \"unknown\"\n" : ""
-                let r = try run(b, "\(targetScript(b,t))\n\(guardURL)return \(command)")
-                if let s = r.stringValue, let signal = Signal(rawValue: s), signal != .unknown {
-                    return Observation(signal: signal, method: "DOM")
-                }
-            } catch { /* Missing JavaScript permission: use public Accessibility API. */ }
+                let signal = try domSignal(b,t)
+                if signal != .unknown { return Observation(signal:signal,method:"DOM") }
+                method = L("DOM не распознал кнопки; Универсальный доступ","DOM did not recognize controls; Accessibility")
+            } catch {
+                let code = (error as? AppFailure)?.code ?? -1
+                method = L("JavaScript недоступен (код \(code)); Универсальный доступ","JavaScript unavailable (code \(code)); Accessibility")
+            }
         }
-        return Observation(signal: accessibility(b,t), method: "Accessibility")
+        return Observation(signal:accessibility(b,t),method:method)
     }
     func mark(_ b: Browser, _ tab: TabRef) -> TabRef {
         var result = tab
@@ -266,18 +358,25 @@ final class BrowserBridge: BrowserService {
             let e = queue[offset]; offset += 1
             let role = attribute(e, kAXRoleAttribute) as? String ?? ""
             if SecurityPolicy.metadataAllowed(role:role) {
-                let label = [kAXTitleAttribute,kAXDescriptionAttribute,kAXHelpAttribute,"AXIdentifier"]
-                    .compactMap { attribute(e,$0) as? String }.joined(separator:" ").lowercased()
-                if Self.stopLabel(label) { return .busy }
+                let labels = [kAXTitleAttribute,kAXDescriptionAttribute,kAXHelpAttribute,"AXIdentifier"]
+                    .compactMap { attribute(e,$0) as? String }
+                let label = labels.joined(separator:" ").lowercased()
+                let enabled = attribute(e,kAXEnabledAttribute) as? Bool ?? true
+                if enabled && Self.stopLabels(labels) { return .busy }
                 if label.contains("send") || label.contains("отправить") || label.contains("voice") || label.contains("голос") || label.contains("dictate") || label.contains("диктов") { ready = true }
             }
-            if ["AXTextArea", "AXTextField"].contains(role) { composer = true }
+            if ["AXTextArea", "AXTextField", "AXTextEntryArea"].contains(role) { composer = true }
             if SecurityPolicy.childContentAllowed(role:role), let children = attribute(e,kAXChildrenAttribute) as? [AXUIElement] { queue.append(contentsOf: children) }
         }
         guard offset == queue.count else { return .unknown }
         return composer && ready ? .idle : .unknown
     }
     static func stopLabel(_ s: String) -> Bool {
-        s.contains("stop generating") || s.contains("stop generation") || s.contains("stop streaming") || s.contains("остановить генерацию") || s.contains("прекратить генерацию") || s.contains("остановить ответ") || s.contains("stop-button")
+        NativeControls.stopMarker(s) != nil
+    }
+    static func stopLabels(_ labels: [String]) -> Bool {
+        let combined = labels.joined(separator:" ").lowercased()
+        if ["stop recording","stop dictat","остановить запись","остановить диктов"].contains(where:combined.contains) { return false }
+        return labels.contains(where:stopLabel)
     }
 }
